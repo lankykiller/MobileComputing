@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 NavHost(navController = navController, startDestination = "MainScreen", builder = {
                     composable("mainScreen") { MainScreen(SampleData, navController) }
-                    composable("settingsScreen") { SettingsScreen() }
+                    composable("settingsScreen") { SettingsScreen(navController) }
                     }
 
                 )
