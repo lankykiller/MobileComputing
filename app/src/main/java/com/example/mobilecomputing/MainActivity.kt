@@ -15,9 +15,9 @@ class MainActivity : ComponentActivity() {
         setContent{
             MobileComputingTheme {
                 val navController = rememberNavController()
-                NavHost(navController = navController, startDestination = "MainScreen", builder = {
+                NavHost(navController = navController, startDestination = "mainScreen", builder = {
                     composable("mainScreen") { MainScreen(SampleData, navController) }
-                    composable("settingsScreen") { SettingsScreen(navController) }
+                    composable("settingsScreen") { SettingsScreen(navController)}
                     }
 
                 )

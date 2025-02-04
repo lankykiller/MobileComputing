@@ -1,6 +1,9 @@
 package com.example.mobilecomputing
 
+import android.content.Context
 import android.content.res.Configuration
+import android.net.Uri
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
@@ -19,12 +22,44 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.mobilecomputing.ui.theme.MobileComputingTheme
+import androidx.room.Room
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.rememberAsyncImagePainter
+import java.io.File
 
 data class Message(val author: String, val body: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(messages: SampleData, navController: NavHostController) {
+
+    val context = LocalContext.current
+    val db = remember { getDatabase(context) }
+    val userDao = remember { db.userDao() }
+
+    var userName by remember { mutableStateOf<String?>(null) }
+    var profilePicture by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Load user data
+    LaunchedEffect(Unit) {
+        coroutineScope.launch(Dispatchers.IO) {
+            val users = userDao.getAll()
+            if (users.isEmpty()) {
+                val firstUser = SampleData.conversationSample.first().author
+                val firstProfileUri = null
+                userDao.insertAll(User(id = 0, name = firstUser, firstProfileUri))
+                userName = firstUser
+            }
+            else {
+                userName = users.firstOrNull()?.name
+                profilePicture = users.firstOrNull()?.profilePictureUri
+            }
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
 
         TopAppBar(
@@ -35,16 +70,27 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
                 }
             }
         )
-
-        Conversation(messages = SampleData.conversationSample)
+        Conversation(messages = SampleData.conversationSample, userName = userName, profilePicture = profilePicture)
     }
 }
 
 @Composable
-fun MessageCard(msg: Message) {
+fun MessageCard(msg: Message, userName: String?, profilePicture: String?) {
+
     Row(modifier = Modifier.padding(all = 8.dp)) {
+        val imageUri = profilePicture?.let { Uri.parse(it) }
+        val picPainter = if (imageUri != null) {
+            rememberAsyncImagePainter(
+                model = File(imageUri.path),
+                placeholder = null,
+                error = null
+            )
+        } else {
+            painterResource(R.drawable.profile_picture)
+        }
+
         Image(
-            painter = painterResource(R.drawable.profile_picture),
+            painter = picPainter,
             contentDescription = "Contact profile picture",
             modifier = Modifier
                 .size(40.dp)
@@ -60,7 +106,7 @@ fun MessageCard(msg: Message) {
 
         Column(modifier = Modifier.clickable { isExpanded = !isExpanded }) {
             Text(
-                text = msg.author,
+                text = userName ?: msg.author,
                 color = MaterialTheme.colorScheme.secondary,
                 style = MaterialTheme.typography.titleSmall
             )
@@ -82,11 +128,18 @@ fun MessageCard(msg: Message) {
     }
 }
 
+fun getDatabase(context: Context): AppDatabase {
+    return Room.databaseBuilder(
+        context.applicationContext,
+        AppDatabase::class.java, "UserDB"
+    ).build()
+}
+
 @Composable
-fun Conversation(messages: List<Message>) {
+fun Conversation(messages: List<Message>, userName: String?, profilePicture: String?) {
     LazyColumn {
         items(messages) { message ->
-            MessageCard(message)
+            MessageCard(message, userName, profilePicture)
         }
     }
 }
@@ -99,10 +152,13 @@ fun Conversation(messages: List<Message>) {
 )
 @Composable
 fun PreviewMessageCard() {
+
     MobileComputingTheme {
         Surface {
             MessageCard(
-                msg = Message("LeBron", "Jetpack Compose is great!")
+                msg = Message("LeBron", "Jetpack Compose is great!"),
+                userName = null,
+                profilePicture = null
             )
         }
     }
@@ -112,7 +168,7 @@ fun PreviewMessageCard() {
 @Composable
 fun PreviewConversation() {
     MobileComputingTheme {
-        Conversation(SampleData.conversationSample
-            )
+        Conversation(SampleData.conversationSample, userName = null, profilePicture = null)
     }
 }
+
