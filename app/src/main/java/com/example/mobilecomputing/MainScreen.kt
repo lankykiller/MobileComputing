@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.awaitCancellation
 import java.io.File
 
 data class Message(val author: String, val body: String)
@@ -59,6 +60,7 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
             }
         }
     }
+    
 
     Column(Modifier.fillMaxSize()) {
 

@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.androidx.work.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,6 +74,6 @@ dependencies {
 
     ksp("androidx.room:room-compiler:$room_version")
 
-
+    implementation("androidx.core:core-ktx:1.15.0")
 }
 

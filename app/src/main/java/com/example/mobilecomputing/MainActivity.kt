@@ -7,6 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 
 
 class MainActivity : ComponentActivity() {
@@ -17,12 +19,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 NavHost(navController = navController, startDestination = "mainScreen", builder = {
                     composable("mainScreen") { MainScreen(SampleData, navController) }
-                    composable("settingsScreen") { SettingsScreen(navController)}
-                    }
-
-                )
+                    composable("settingsScreen") { SettingsScreen(navController) }
+                })
             }
         }
     }
+
+   override fun onStop() {
+       super.onStop()
+       sendNotification()
+   }
+
+    private fun sendNotification() {
+        val notificationWorkRequest = OneTimeWorkRequestBuilder<AutoNotification>()
+            .build()
+
+        WorkManager.getInstance(this).enqueue(notificationWorkRequest)
+    }
 }
+
+
 
