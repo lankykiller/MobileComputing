@@ -2,6 +2,10 @@ package com.example.mobilecomputing
 
 import android.content.Context
 import android.content.res.Configuration
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
 
 import androidx.compose.animation.animateColorAsState
@@ -15,8 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,6 +50,61 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
     var profilePicture by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    var brightnessSensor by remember { mutableStateOf(0f) }
+    var brightnessText by remember { mutableStateOf("Unknown") }
+
+    val sensorManager = remember {
+        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    }
+
+    val lightSensor = remember {
+        sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+    }
+
+    var currentBackground by remember { mutableStateOf(R.drawable.background_normal) }
+
+    fun updateBackgroundResource(brightness: Float): Int {
+        return when (brightness.toInt()) {
+            0 -> R.drawable.background_pitch_black
+            in 1..10 -> R.drawable.background_dark
+            in 11..50 -> R.drawable.background_grey
+            in 51..5000 -> R.drawable.background_normal
+            in 5001..25000 -> R.drawable.background_bright
+            else -> R.drawable.background_very_bright
+        }
+    }
+
+    DisposableEffect(sensorManager) {
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
+                    brightnessSensor = event.values[0]
+                    brightnessText = when (brightnessSensor.toInt()) {
+                        0 -> "Pitch black"
+                        in 1..10 -> "Dark"
+                        in 11..50 -> "Grey"
+                        in 51..5000 -> "Basic"
+                        in 5001..25000 -> "Bright"
+                        else -> "Too bright"
+                    }
+                    currentBackground = updateBackgroundResource(brightnessSensor)
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        sensorManager.registerListener(
+            listener,
+            lightSensor,
+            SensorManager.SENSOR_DELAY_NORMAL
+        )
+
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
+
     // Load user data
     LaunchedEffect(Unit) {
         coroutineScope.launch(Dispatchers.IO) {
@@ -60,19 +121,44 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
             }
         }
     }
-    
 
-    Column(Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
 
-        TopAppBar(
-            title = { Text(text = "Conversation") },
-            actions = {
-                Button(onClick = { navController.navigate("settingsScreen") }) {
-                    Text(text = "Settings")
-                }
-            }
+        Image(
+            painter = painterResource(currentBackground),
+            contentDescription = "Background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
         )
-        Conversation(messages = SampleData.conversationSample, userName = userName, profilePicture = profilePicture)
+
+        Column(Modifier.fillMaxSize()) {
+            TopAppBar(
+                title = {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Text(text = "Conversation")
+                        Row {
+                            Text(
+                                text = "Brightness: ${String.format("%.1f", brightnessSensor)} lux $brightnessText",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    Button(onClick = { navController.navigate("settingsScreen") }) {
+                        Text(text = "Settings")
+                    }
+                }
+            )
+            Conversation(messages = SampleData.conversationSample, userName = userName, profilePicture = profilePicture)
+        }
     }
 }
 
