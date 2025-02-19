@@ -45,10 +45,14 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
     val context = LocalContext.current
     val db = remember { getDatabase(context) }
     val userDao = remember { db.userDao() }
+    val messageDao = remember { db.messageDao() }
 
     var userName by remember { mutableStateOf<String?>(null) }
     var profilePicture by remember { mutableStateOf<String?>(null) }
+    var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
+    var newMessageText by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
+
 
     var brightnessSensor by remember { mutableStateOf(0f) }
     var brightnessText by remember { mutableStateOf("Unknown") }
@@ -108,6 +112,18 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
     // Load user data
     LaunchedEffect(Unit) {
         coroutineScope.launch(Dispatchers.IO) {
+
+            val messageCount = messageDao.getCount()
+            if (messageCount == 0) {
+                val sampleMessages = SampleData.conversationSample.map {
+                    MessageEntity(author = it.author, body = it.body)
+                }
+                messageDao.insertAll(sampleMessages)
+            }
+
+            val dbMessages = messageDao.getAllMessages()
+            messages = dbMessages.map { Message(it.author, it.body) }
+
             val users = userDao.getAll()
             if (users.isEmpty()) {
                 val firstUser = SampleData.conversationSample.first().author
@@ -157,7 +173,46 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
                     }
                 }
             )
-            Conversation(messages = SampleData.conversationSample, userName = userName, profilePicture = profilePicture)
+            Box(modifier = Modifier.weight(1f)) {
+                Conversation(messages = messages, userName = userName, profilePicture = profilePicture)
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = newMessageText,
+                    onValueChange = { newMessageText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Type a message") }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        if (newMessageText.isNotBlank() && userName != null) {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val newMessage = MessageEntity(
+                                    author = userName!!,
+                                    body = newMessageText
+                                )
+                                messageDao.insertMessage(newMessage)
+
+                                val dbMessages = messageDao.getAllMessages()
+                                messages = dbMessages.map { Message(it.author, it.body) }
+
+                                newMessageText = ""
+                            }
+                        }
+                    }
+                ) {
+                    Text("Send")
+                }
+            }
         }
     }
 }
