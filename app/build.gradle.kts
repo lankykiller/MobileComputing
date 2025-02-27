@@ -76,6 +76,6 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation (libs.androidx.room.ktx)
-
+    implementation("androidx.core:core-splashscreen:1.0.0")
 }
 
