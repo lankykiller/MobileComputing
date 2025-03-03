@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
 import java.io.File
 
 data class Message(val author: String, val body: String)
@@ -53,6 +54,8 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
     var newMessageText by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
 
+    var isBotLoading by remember { mutableStateOf(false) }
+    val chatGPTClient = remember { ChatGPT() }
 
     var brightnessSensor by remember { mutableStateOf(0f) }
     var brightnessText by remember { mutableStateOf("Unknown") }
@@ -211,6 +214,53 @@ fun MainScreen(messages: SampleData, navController: NavHostController) {
                     }
                 ) {
                     Text("Send")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            isBotLoading = true
+                            try {
+                                val botResponse = chatGPTClient.getMessage()
+
+                                withContext(Dispatchers.IO) {
+                                    val botMessage = MessageEntity(
+                                        author = "AI Bot",
+                                        body = botResponse
+                                    )
+                                    messageDao.insertMessage(botMessage)
+
+                                    val dbMessages = messageDao.getAllMessages()
+                                    messages = dbMessages.map { Message(it.author, it.body) }
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.IO) {
+                                    val errorMessage = MessageEntity(
+                                        author = "AI Bot",
+                                        body = "Failed to generate message: ${e.localizedMessage}"
+                                    )
+                                    messageDao.insertMessage(errorMessage)
+
+                                    // Refresh messages list
+                                    val dbMessages = messageDao.getAllMessages()
+                                    messages = dbMessages.map { Message(it.author, it.body) }
+                                }
+                            } finally {
+                                isBotLoading = false
+                            }
+                        }
+                    },
+                    enabled = !isBotLoading
+                ) {
+                    if (isBotLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("AI Message")
+                    }
                 }
             }
         }
